@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const UserDetails = require("../models/userDetails");
+const UserDetails = require("../models/UserDetails");
 
 async function getProfile(req, res) {
   const user = await User.findById(req.userId).lean();

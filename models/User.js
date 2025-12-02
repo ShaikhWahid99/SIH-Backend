@@ -23,6 +23,7 @@ const UserSchema = new mongoose.Schema({
   refreshToken: { type: String, default: null }, 
   onboarded: { type: Boolean, default: false },
   quizCompleted: { type: Boolean, default: false },
+  dynamicQuizCompleted: { type: Boolean, default: false },
 
   createdAt: { type: Date, default: Date.now },
   lastLoginAt: Date,
