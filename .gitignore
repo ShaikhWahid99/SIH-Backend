@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+# keys directory and key files
+keys/
+keys/*.pem
+keys/*.key
+# editor and OS
+.vscode/
+.DS_Store
