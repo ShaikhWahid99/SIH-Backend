@@ -1,16 +1,4 @@
-const mongoose = require('mongoose');
-
-const DynamicQuizAnswerSchema = new mongoose.Schema(
-  {
-    questionId: { type: String, required: true },
-    question: { type: String, required: true },
-    options: { type: [String], default: [] },
-    answer: { type: String, required: true },
-  },
-  { _id: false }
-);
-
-// Store each quiz response with full context
+const mongoose = require("mongoose");
 const QuizResponseSchema = new mongoose.Schema(
   {
     questionId: { type: Number, required: true },
@@ -22,12 +10,12 @@ const QuizResponseSchema = new mongoose.Schema(
 );
 
 const UserDetailsSchema = new mongoose.Schema({
-  user: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true, 
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
     unique: true,
-    index: true,   // faster lookups in getProfile()
+    index: true,
   },
 
   ageRange: { type: String, default: null },
@@ -39,13 +27,12 @@ const UserDetailsSchema = new mongoose.Schema({
   education: {
     highestQualification: { type: String, default: null },
     stream: { type: String, default: null },
-    status: { type: String, default: null }
+    status: { type: String, default: null },
   },
 
   skills: { type: [String], default: [] },
   interestSectors: { type: [String], default: [] },
 
-  // Full quiz responses with question, category and answer
   quizResponses: {
     type: [QuizResponseSchema],
     default: [],
@@ -55,12 +42,6 @@ const UserDetailsSchema = new mongoose.Schema({
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: null },
-
-   dynamicQuizAnswers: {
-    type: [DynamicQuizAnswerSchema],
-    default: [],
-  },
-  dynamicQuizCompletedAt: { type: Date, default: null },
 });
 
-module.exports = mongoose.model('UserDetails', UserDetailsSchema);
+module.exports = mongoose.model("UserDetails", UserDetailsSchema);
