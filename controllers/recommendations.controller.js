@@ -14,7 +14,7 @@ function mapNodeToPathway(node, rank) {
     return Number(val);
   };
 
-  // Duration Logic (Matches your DB keys)
+  // Duration Logic (Kept from HEAD, essential for 'duration: durationStr')
   let durationStr = 'N/A';
   if (props.duration_formatted) {
     durationStr = props.duration_formatted;
@@ -28,16 +28,16 @@ function mapNodeToPathway(node, rank) {
   return {
     id,
     title: props.title || props.name || 'Untitled Pathway',
-    
+
     // Check all possible code keys from your screenshot
-    nqrCode: props.code || props.nqr_code || props.nos_code || '', 
-    
+    nqrCode: props.code || props.nqr_code || props.nos_code || '',
+
     description: props.description || '',
     duration: durationStr,
     nsqfLevel: getInt(props.nsqfLevel || props.nsqf_level || props.level),
     sector: props.sector || 'General',
     validTill: props.valid_till || props.validTill || 'N/A',
-    
+
     tags: Array.isArray(props.tags) ? props.tags : [],
     skillDemand: rank != null ? `Rank ${rank}` : props.skillDemand || undefined,
   };
@@ -111,7 +111,7 @@ async function getPathwayById(req, res) {
     const node = result.records[0].get('q');
     // Use the updated mapper
     const pathway = mapNodeToPathway(node, null);
-    
+
     return res.json(pathway);
   } catch (err) {
     console.error('getPathwayById error:', err);
@@ -148,7 +148,7 @@ async function getPathwayGraph(req, res) {
       if (!nodes.has(qId)) {
         nodes.set(qId, {
           id: qId,
-          // Use new DB keys for Title and Code
+          // Combined keys from HEAD and kept link logic
           label: qProps.title || qProps.name || 'Qualification',
           code: qProps.code || qProps.nqr_code || '',
           type: 'root',
@@ -163,10 +163,11 @@ async function getPathwayGraph(req, res) {
       if (!nodes.has(mId)) {
         nodes.set(mId, {
           id: mId,
-          // Use new DB keys here too
+          // Robust key checking from HEAD
           label: mProps.title || mProps.name || 'Module',
-          code: mProps.code || mProps.nqr_code || mProps.nos_code || '', 
+          code: mProps.code || mProps.nqr_code || mProps.nos_code || '',
           type: 'module',
+          // Link logic kept from both branches
           link: `/learner/courses/${mId}`,
           ...mProps
         });
@@ -194,6 +195,7 @@ async function getCourseById(req, res) {
     const { id } = req.params;
     session = getSession();
 
+    // Query to find ANY node (Course, Module, Lab) by its ID (from friend's comment)
     const query = `
       MATCH (n)
       WHERE elementId(n) = $id OR ID(n) = toInteger($id)
@@ -210,14 +212,14 @@ async function getCourseById(req, res) {
     const props = node.properties || {};
     const nodeId = node.elementId || String(node.identity);
 
-    // Helper for integers
+    // Helper for integers (from HEAD)
     const getInt = (val) => {
       if (!val) return 0;
       if (val.low !== undefined) return val.toNumber();
       return Number(val);
     };
 
-    // Duration Logic
+    // Duration Logic (from HEAD, more comprehensive)
     let durationStr = 'N/A';
     if (props.duration_formatted) durationStr = props.duration_formatted;
     else if (props.duration_minutes) durationStr = `${Math.floor(getInt(props.duration_minutes) / 60)} Hours`;
@@ -226,20 +228,24 @@ async function getCourseById(req, res) {
     // ✅ 4. FIX: Normalize Course Detail Properties
     return res.json({
       id: nodeId,
+      // Robust title check
       title: props.title || props.name || 'Untitled Module',
-      code: props.code || props.nqr_code || props.nos_code || '', // Explicit Code Check
-      
+      // Robust code check (from HEAD)
+      code: props.code || props.nqr_code || props.nos_code || '',
+
       mandatory: props.mandatory || 'Optional',
       credits: props.credits ? String(props.credits) : '0',
-      duration: durationStr,
-      
+      duration: durationStr, // Uses calculated duration
+
+      // Robust level check (from HEAD)
       nsqfLevel: props.nsqf_level || props.nsqfLevel || props.level || 'N/A',
-      
+
       description: props.description || '',
       mode: props.mode || 'Offline',
       provider: props.provider || 'Internal',
-      learningOutcomes: props.learning_outcome || props.learningOutcomes || [], // Check for 'learning_outcome' from your screenshot
-      
+      // Robust learning outcomes check (from HEAD)
+      learningOutcomes: props.learning_outcome || props.learningOutcomes || [],
+
       ...props
     });
   } catch (err) {
@@ -252,19 +258,26 @@ async function getCourseById(req, res) {
 
 async function getRelatedVideos(req, res) {
   try {
-    const { q } = req.query;
-    if (!q) return res.status(400).json({ message: 'Query parameter "q" is required' });
+    const { q } = req.query; // Expecting query param ?q=CourseName (from friend's comment)
+    if (!q) {
+      return res.status(400).json({ message: 'Query parameter "q" is required' });
+    }
 
     const searchQuery = q.replace(/ /g, '+');
+    // Using a User-Agent to mimic a real browser to avoid simple blocking (from friend's comment)
     const response = await axios.get(`https://www.youtube.com/results?search_query=${searchQuery}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
       }
     });
 
+    // Extract JSON data from the HTML (from friend's comment)
     const html = response.data;
     const match = html.match(/var ytInitialData = ({.*?});/);
-    if (!match) return res.json([]);
+
+    if (!match) {
+      return res.json([]);
+    }
 
     const data = JSON.parse(match[1]);
     const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
@@ -284,7 +297,8 @@ async function getRelatedVideos(req, res) {
                 thumbnail: v.thumbnail?.thumbnails[0]?.url || '',
                 views: v.viewCountText?.simpleText || 'N/A'
               });
-              if (videos.length >= 3) break;
+
+              if (videos.length >= 3) break; // Limit to 3 videos (from friend's comment)
             }
           }
         }
@@ -292,8 +306,10 @@ async function getRelatedVideos(req, res) {
       }
     }
     return res.json(videos);
+
   } catch (err) {
     console.error('getRelatedVideos error:', err.message);
+    // Return empty array on failure so frontend doesn't crash (from friend's comment)
     return res.json([]);
   }
 }
