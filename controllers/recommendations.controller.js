@@ -194,7 +194,7 @@ async function getCourseById(req, res) {
     const { id } = req.params;
     session = getSession();
 
-    // Query to find ANY node (Course, Module, Lab) by its ID (from friend's comment)
+    // Query to find ANY node (Course, Module, Lab) by its ID
     const query = `
       MATCH (n)
       WHERE elementId(n) = $id OR ID(n) = toInteger($id)
@@ -253,20 +253,20 @@ async function getCourseById(req, res) {
 
 async function getRelatedVideos(req, res) {
   try {
-    const { q } = req.query; // Expecting query param ?q=CourseName (from friend's comment)
+    const { q } = req.query; // Expecting query param ?q=CourseName
     if (!q) {
       return res.status(400).json({ message: 'Query parameter "q" is required' });
     }
 
     const searchQuery = q.replace(/ /g, '+');
-    // Using a User-Agent to mimic a real browser to avoid simple blocking (from friend's comment)
+    // Using a User-Agent to mimic a real browser to avoid simple blocking
     const response = await axios.get(`https://www.youtube.com/results?search_query=${searchQuery}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
       }
     });
 
-    // Extract JSON data from the HTML (from friend's comment)
+    // Extract JSON data from the HTML
     const html = response.data;
     const match = html.match(/var ytInitialData = ({.*?});/);
     if (!match) return res.json([]);
@@ -290,7 +290,7 @@ async function getRelatedVideos(req, res) {
                 views: v.viewCountText?.simpleText || 'N/A'
               });
 
-              if (videos.length >= 3) break; // Limit to 3 videos (from friend's comment)
+              if (videos.length >= 3) break; // Limit to 3 videos
             }
           }
         }
@@ -300,12 +300,12 @@ async function getRelatedVideos(req, res) {
     return res.json(videos);
   } catch (err) {
     console.error('getRelatedVideos error:', err.message);
-    // Return empty array on failure so frontend doesn't crash (from friend's comment)
+    // Return empty array on failure so frontend doesn't crash
     return res.json([]);
   }
 }
 
-// ✅ NEW FUNCTION: Skill India Similarity Search
+// ✅ NEW FUNCTION: Skill India Similarity Search (Preserved from HEAD)
 async function getSkillIndiaSimilarCourses(req, res) {
   let session;
   try {
@@ -356,6 +356,7 @@ async function getSkillIndiaSimilarCourses(req, res) {
   }
 }
 
+// ✅ NEW FUNCTION: All Skill India Courses (Preserved from HEAD)
 async function getAllSkillIndiaCourses(req, res) {
   let session;
   try {
