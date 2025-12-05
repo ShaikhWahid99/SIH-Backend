@@ -11,6 +11,7 @@ async function getProfile(req, res) {
     displayName: user.displayName,
     onboarded: user.onboarded,
     quizCompleted: user.quizCompleted,
+    dynamicQuizCompleted: user.dynamicQuizCompleted,
     userDetails: details || null,
   });
 }
