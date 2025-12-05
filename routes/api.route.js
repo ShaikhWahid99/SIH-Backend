@@ -4,6 +4,8 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const user = require('../controllers/user.controller');
 const recommendations = require('../controllers/recommendations.controller');
+const { getCourseById } = require('../controllers/recommendations.controller');
+const recommendationsController = require('../controllers/recommendations.controller');
 
 // ✅ EXISTING PROFILE ROUTES
 router.get('/me', requireAuth, user.getProfile);
@@ -20,5 +22,10 @@ module.exports = router;
 // ✅ ✅ ADD GOOGLE TRANSLATE ROUTE
 const translateRoute = require('./translate.route');
 router.use('/translate', translateRoute);
+
+module.exports = router;
+router.get('/courses/:id', getCourseById);
+
+router.get('/videos/search', recommendationsController.getRelatedVideos);
 
 module.exports = router;
