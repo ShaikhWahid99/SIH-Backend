@@ -19,7 +19,12 @@ module.exports = {
     callbackURL: process.env.GOOGLE_CALLBACK_URL,
   },
 
-  appUrl: process.env.APP_URL || 'http://localhost:8080',
+  // ✅ ✅ ADD THIS INSIDE module.exports
+  googleTranslate: {
+    apiKey: process.env.GOOGLE_TRANSLATE_API_KEY,
+  },
+
+  appUrl: process.env.APP_URL || 'http://localhost:8081',
 
   isProd: process.env.NODE_ENV === 'production',
 };
