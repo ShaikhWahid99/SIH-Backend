@@ -22,4 +22,11 @@ module.exports = {
   appUrl: process.env.APP_URL || 'http://localhost:8080',
 
   isProd: process.env.NODE_ENV === 'production',
+
+  neo4j: {
+    uri: process.env.NEO4J_URI,
+    username: process.env.NEO4J_USERNAME,
+    password: process.env.NEO4J_PASSWORD || process.env.AUTH,
+    database: process.env.NEO4J_DATABASE || 'neo4j',
+  },
 };
