@@ -9,4 +9,9 @@ router.post('/me', requireAuth, user.upsertProfile);
 
 router.get('/recommendations', requireAuth, recommendations.getRecommendations);
 
+// NEW ROUTE ADDED HERE:
+router.get('/pathways/:id', requireAuth, recommendations.getPathwayById);
+
+router.get('/pathways/:id/graph', requireAuth, recommendations.getPathwayGraph);
+
 module.exports = router;
