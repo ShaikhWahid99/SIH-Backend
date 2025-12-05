@@ -1,5 +1,6 @@
 const { getSession } = require('../config/neo4j');
 const User = require('../models/User');
+const axios = require('axios');
 
 function mapNodeToPathway(node, rank) {
   const props = node.properties || {};
@@ -12,7 +13,7 @@ function mapNodeToPathway(node, rank) {
     return Number(val);
   };
 
-return {
+  return {
     id,
     title: props.title || props.name || 'Untitled Pathway',
     nqrCode: props.nqr_code || props.nqrCode || '',
@@ -117,7 +118,6 @@ async function getPathwayById(req, res) {
   }
 }
 
-// ... existing imports and functions ...
 
 async function getPathwayGraph(req, res) {
   let session;
@@ -125,7 +125,6 @@ async function getPathwayGraph(req, res) {
     const { id } = req.params;
     session = getSession();
 
-    // Query: Find the Qualification by ID, then find all connected Modules
     const query = `
       MATCH (q:Qualification)-[:HAS_MODULE]->(m)
       WHERE elementId(q) = $id OR ID(q) = toInteger($id)
@@ -134,7 +133,6 @@ async function getPathwayGraph(req, res) {
 
     const result = await session.run(query, { id });
 
-    // Transform Neo4j data into a standard Graph format (Nodes & Links)
     const nodes = new Map();
     const links = [];
 
@@ -148,7 +146,9 @@ async function getPathwayGraph(req, res) {
         nodes.set(qId, {
           id: qId,
           label: q.properties.title || 'Qualification',
-          type: 'root', // specialized type for styling
+          type: 'root',
+          // === NEW: Add Link to Pathway Detail ===
+          link: `/learner/pathways/${qId}`, 
           ...q.properties
         });
       }
@@ -160,6 +160,8 @@ async function getPathwayGraph(req, res) {
           id: mId,
           label: m.properties.title || m.properties.name || 'Module',
           type: 'module',
+          // === NEW: Add Link to Course Detail based on your App.tsx ===
+          link: `/learner/courses/${mId}`,
           ...m.properties
         });
       }
@@ -184,4 +186,120 @@ async function getPathwayGraph(req, res) {
   }
 }
 
-module.exports = { getRecommendations, getPathwayById, getPathwayGraph };
+async function getCourseById(req, res) {
+  let session;
+  try {
+    const { id } = req.params;
+    session = getSession();
+
+    // Query to find ANY node (Course, Module, Lab) by its ID
+    const query = `
+      MATCH (n)
+      WHERE elementId(n) = $id OR ID(n) = toInteger($id)
+      RETURN n
+    `;
+
+    const result = await session.run(query, { id });
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ message: 'Course/Module not found' });
+    }
+
+    const record = result.records[0];
+    const node = record.get('n');
+    const props = node.properties;
+    
+    // Normalize ID
+    const nodeId = node.elementId || String(node.identity);
+
+    // Return the properties mapping specifically to what exists in your Neo4j screenshot
+    return res.json({
+      id: nodeId,
+      // Map 'name' from DB to 'title' for frontend consistency
+      title: props.title || props.name || 'Untitled Module',
+      // Code field (e.g., AGR/N4349)
+      code: props.code || '',
+      // Mandatory/Elective status
+      mandatory: props.mandatory || 'Optional',
+      // Credits
+      credits: props.credits ? String(props.credits) : '0',
+      // Map 'hours' directly or fall back to duration
+      duration: props.hours ? `${props.hours} Hours` : props.duration || 'N/A',
+      // Level mapping
+      nsqfLevel: props.level || props.nsqfLevel || 'N/A',
+      
+      description: props.description || '',
+      mode: props.mode || 'Offline', // Defaulting to Offline/Internal as per typical module data
+      provider: props.provider || 'Internal',
+      learningOutcomes: props.learningOutcomes || [],
+      
+      ...props // Spread any other custom fields
+    });
+  } catch (err) {
+    console.error('getCourseById error:', err);
+    return res.status(500).json({ message: 'Failed to fetch course details' });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+async function getRelatedVideos(req, res) {
+  try {
+    const { q } = req.query; // Expecting query param ?q=CourseName
+    if (!q) {
+      return res.status(400).json({ message: 'Query parameter "q" is required' });
+    }
+
+    const searchQuery = q.replace(/ /g, '+');
+    // Using a User-Agent to mimic a real browser to avoid simple blocking
+    const response = await axios.get(`https://www.youtube.com/results?search_query=${searchQuery}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
+      }
+    });
+
+    // Extract JSON data from the HTML
+    const html = response.data;
+    const match = html.match(/var ytInitialData = ({.*?});/);
+    
+    if (!match) {
+      return res.json([]); 
+    }
+
+    const data = JSON.parse(match[1]);
+    const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
+
+    const videos = [];
+    if (contents) {
+      for (const section of contents) {
+        const items = section.itemSectionRenderer?.contents;
+        if (items) {
+          for (const item of items) {
+            if (item.videoRenderer) {
+              const v = item.videoRenderer;
+              videos.push({
+                title: v.title?.runs[0]?.text || 'No Title',
+                videoId: v.videoId,
+                url: `https://www.youtube.com/watch?v=${v.videoId}`,
+                thumbnail: v.thumbnail?.thumbnails[0]?.url || '',
+                views: v.viewCountText?.simpleText || 'N/A'
+              });
+              
+              if (videos.length >= 3) break; // Limit to 3 videos
+            }
+          }
+        }
+        if (videos.length >= 3) break;
+      }
+    }
+
+    return res.json(videos);
+
+  } catch (err) {
+    console.error('getRelatedVideos error:', err.message);
+    // Return empty array on failure so frontend doesn't crash
+    return res.json([]); 
+  }
+}
+
+module.exports = { getRecommendations, getPathwayById, getPathwayGraph, getCourseById, getRelatedVideos};
