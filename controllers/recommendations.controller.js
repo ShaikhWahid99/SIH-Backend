@@ -194,7 +194,6 @@ async function getCourseById(req, res) {
     const { id } = req.params;
     session = getSession();
 
-    // Query to find ANY node (Course, Module, Lab) by its ID
     const query = `
       MATCH (n)
       WHERE elementId(n) = $id OR ID(n) = toInteger($id)
@@ -253,20 +252,16 @@ async function getCourseById(req, res) {
 
 async function getRelatedVideos(req, res) {
   try {
-    const { q } = req.query; // Expecting query param ?q=CourseName
-    if (!q) {
-      return res.status(400).json({ message: 'Query parameter "q" is required' });
-    }
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ message: 'Query parameter "q" is required' });
 
     const searchQuery = q.replace(/ /g, '+');
-    // Using a User-Agent to mimic a real browser to avoid simple blocking
     const response = await axios.get(`https://www.youtube.com/results?search_query=${searchQuery}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
       }
     });
 
-    // Extract JSON data from the HTML
     const html = response.data;
     const match = html.match(/var ytInitialData = ({.*?});/);
     if (!match) return res.json([]);
