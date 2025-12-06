@@ -14,7 +14,7 @@ function mapNodeToPathway(node, rank) {
     return Number(val);
   };
 
-  // Duration Logic (Kept from HEAD, essential for 'duration: durationStr')
+  // Duration Logic (Matches your DB keys)
   let durationStr = 'N/A';
   if (props.duration_formatted) {
     durationStr = props.duration_formatted;
@@ -148,7 +148,7 @@ async function getPathwayGraph(req, res) {
       if (!nodes.has(qId)) {
         nodes.set(qId, {
           id: qId,
-          // Combined keys from HEAD and kept link logic
+          // Use new DB keys for Title and Code
           label: qProps.title || qProps.name || 'Qualification',
           code: qProps.code || qProps.nqr_code || '',
           type: 'root',
@@ -163,11 +163,10 @@ async function getPathwayGraph(req, res) {
       if (!nodes.has(mId)) {
         nodes.set(mId, {
           id: mId,
-          // Robust key checking from HEAD
+          // Use new DB keys here too
           label: mProps.title || mProps.name || 'Module',
           code: mProps.code || mProps.nqr_code || mProps.nos_code || '',
           type: 'module',
-          // Link logic kept from both branches
           link: `/learner/courses/${mId}`,
           ...mProps
         });
@@ -212,14 +211,14 @@ async function getCourseById(req, res) {
     const props = node.properties || {};
     const nodeId = node.elementId || String(node.identity);
 
-    // Helper for integers (from HEAD)
+    // Helper for integers
     const getInt = (val) => {
       if (!val) return 0;
       if (val.low !== undefined) return val.toNumber();
       return Number(val);
     };
 
-    // Duration Logic (from HEAD, more comprehensive)
+    // Duration Logic
     let durationStr = 'N/A';
     if (props.duration_formatted) durationStr = props.duration_formatted;
     else if (props.duration_minutes) durationStr = `${Math.floor(getInt(props.duration_minutes) / 60)} Hours`;
@@ -228,23 +227,19 @@ async function getCourseById(req, res) {
     // ✅ 4. FIX: Normalize Course Detail Properties
     return res.json({
       id: nodeId,
-      // Robust title check
       title: props.title || props.name || 'Untitled Module',
-      // Robust code check (from HEAD)
-      code: props.code || props.nqr_code || props.nos_code || '',
+      code: props.code || props.nqr_code || props.nos_code || '', // Explicit Code Check
 
       mandatory: props.mandatory || 'Optional',
       credits: props.credits ? String(props.credits) : '0',
-      duration: durationStr, // Uses calculated duration
+      duration: durationStr,
 
-      // Robust level check (from HEAD)
       nsqfLevel: props.nsqf_level || props.nsqfLevel || props.level || 'N/A',
 
       description: props.description || '',
       mode: props.mode || 'Offline',
       provider: props.provider || 'Internal',
-      // Robust learning outcomes check (from HEAD)
-      learningOutcomes: props.learning_outcome || props.learningOutcomes || [],
+      learningOutcomes: props.learning_outcome || props.learningOutcomes || [], // Check for 'learning_outcome' from your screenshot
 
       ...props
     });
@@ -274,10 +269,7 @@ async function getRelatedVideos(req, res) {
     // Extract JSON data from the HTML (from friend's comment)
     const html = response.data;
     const match = html.match(/var ytInitialData = ({.*?});/);
-
-    if (!match) {
-      return res.json([]);
-    }
+    if (!match) return res.json([]);
 
     const data = JSON.parse(match[1]);
     const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
@@ -306,7 +298,6 @@ async function getRelatedVideos(req, res) {
       }
     }
     return res.json(videos);
-
   } catch (err) {
     console.error('getRelatedVideos error:', err.message);
     // Return empty array on failure so frontend doesn't crash (from friend's comment)
