@@ -8,6 +8,7 @@ const config = require('./config/env');
 
 const authRouters = require('./routes/auth.route');
 const apiRoutes = require('./routes/api.route');
+const trainerRoutes = require('./routes/trainer.route');
 
 function createApp() {
   const app = express();
@@ -52,6 +53,7 @@ function createApp() {
   // Routes
   app.use('/auth', authRouters);
   app.use('/api', apiRoutes);
+  app.use('/trainer', trainerRoutes);
 
   app.get('/', (req, res) => res.json({ ok: true }));
 
