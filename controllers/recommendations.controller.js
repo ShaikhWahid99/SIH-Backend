@@ -28,16 +28,16 @@ function mapNodeToPathway(node, rank) {
   return {
     id,
     title: props.title || props.name || 'Untitled Pathway',
-    
+
     // Check all possible code keys from your screenshot
-    nqrCode: props.code || props.nqr_code || props.nos_code || '', 
-    
+    nqrCode: props.code || props.nqr_code || props.nos_code || '',
+
     description: props.description || '',
     duration: durationStr,
     nsqfLevel: getInt(props.nsqfLevel || props.nsqf_level || props.level),
     sector: props.sector || 'General',
     validTill: props.valid_till || props.validTill || 'N/A',
-    
+
     tags: Array.isArray(props.tags) ? props.tags : [],
     skillDemand: rank != null ? `Rank ${rank}` : props.skillDemand || undefined,
   };
@@ -111,7 +111,7 @@ async function getPathwayById(req, res) {
     const node = result.records[0].get('q');
     // Use the updated mapper
     const pathway = mapNodeToPathway(node, null);
-    
+
     return res.json(pathway);
   } catch (err) {
     console.error('getPathwayById error:', err);
@@ -165,7 +165,7 @@ async function getPathwayGraph(req, res) {
           id: mId,
           // Use new DB keys here too
           label: mProps.title || mProps.name || 'Module',
-          code: mProps.code || mProps.nqr_code || mProps.nos_code || '', 
+          code: mProps.code || mProps.nqr_code || mProps.nos_code || '',
           type: 'module',
           link: `/learner/courses/${mId}`,
           ...mProps
@@ -228,18 +228,18 @@ async function getCourseById(req, res) {
       id: nodeId,
       title: props.title || props.name || 'Untitled Module',
       code: props.code || props.nqr_code || props.nos_code || '', // Explicit Code Check
-      
+
       mandatory: props.mandatory || 'Optional',
       credits: props.credits ? String(props.credits) : '0',
       duration: durationStr,
-      
+
       nsqfLevel: props.nsqf_level || props.nsqfLevel || props.level || 'N/A',
-      
+
       description: props.description || '',
       mode: props.mode || 'Offline',
       provider: props.provider || 'Internal',
       learningOutcomes: props.learning_outcome || props.learningOutcomes || [], // Check for 'learning_outcome' from your screenshot
-      
+
       ...props
     });
   } catch (err) {
@@ -284,7 +284,8 @@ async function getRelatedVideos(req, res) {
                 thumbnail: v.thumbnail?.thumbnails[0]?.url || '',
                 views: v.viewCountText?.simpleText || 'N/A'
               });
-              if (videos.length >= 3) break;
+
+              if (videos.length >= 3) break; // Limit to 3 videos
             }
           }
         }
@@ -294,11 +295,12 @@ async function getRelatedVideos(req, res) {
     return res.json(videos);
   } catch (err) {
     console.error('getRelatedVideos error:', err.message);
+    // Return empty array on failure so frontend doesn't crash
     return res.json([]);
   }
 }
 
-// ✅ NEW FUNCTION: Skill India Similarity Search
+// ✅ NEW FUNCTION: Skill India Similarity Search (Preserved from HEAD)
 async function getSkillIndiaSimilarCourses(req, res) {
   let session;
   try {
@@ -349,6 +351,7 @@ async function getSkillIndiaSimilarCourses(req, res) {
   }
 }
 
+// ✅ NEW FUNCTION: All Skill India Courses (Preserved from HEAD)
 async function getAllSkillIndiaCourses(req, res) {
   let session;
   try {
