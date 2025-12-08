@@ -27,6 +27,10 @@ router.get('/videos/search', recommendations.getRelatedVideos);
 const translateRoute = require('./translate.route');
 router.use('/translate', translateRoute);
 
+// ✅ CHATBOT ROUTE
+const chatRoute = require('./chat.route');
+router.use('/chat', chatRoute);
+
 router.get('/skill-india/all', requireAuth, recommendations.getAllSkillIndiaCourses);
 
 module.exports = router;
