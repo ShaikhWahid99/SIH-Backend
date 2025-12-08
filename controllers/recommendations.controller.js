@@ -305,4 +305,112 @@ async function getRelatedVideos(req, res) {
   }
 }
 
-module.exports = { getRecommendations, getPathwayById, getPathwayGraph, getCourseById, getRelatedVideos };
+// ✅ NEW FUNCTION: Skill India Similarity Search
+async function getSkillIndiaSimilarCourses(req, res) {
+  let session;
+  try {
+    const { id } = req.params; // Qualification ID (not title, for safety)
+    session = getSession();
+
+    // Uses the Qualification's embedding to find similar SkillIndiaCourses
+    const query = `
+      MATCH (q:Qualification)
+      WHERE elementId(q) = $id OR ID(q) = toInteger($id)
+      WITH q.embedding AS embedding
+      MATCH (n:SkillIndiaCourse)
+      WHERE n.embedding IS NOT NULL AND size(n.embedding) > 0
+      WITH n, embedding, vector.similarity.cosine(embedding, n.embedding) AS similarity
+      ORDER BY similarity DESC
+      RETURN n, similarity
+      LIMIT 4
+    `;
+
+    const result = await session.run(query, { id });
+    
+    const courses = result.records.map(record => {
+      const node = record.get('n');
+      const props = node.properties;
+      const id = node.elementId || String(node.identity);
+      
+      // Map Skill India Nodes to CourseCard Format
+      return {
+        id: id,
+        title: props.title || 'Unknown Course',
+        provider: props.created_by || 'Skill India',
+        duration: props.duration_formatted || `${props.duration_minutes || 0} mins`,
+        mode: props.type || 'Online', // "Paid" in DB, usually implies Online/Hybrid
+        nsqfLevel: props.nsqf_level || 'N/A', // Mapped from DB
+        description: props.long_description || props.description || props.learning_outcome || '',
+        isExternal: true, // Flag for frontend
+        externalLink: props.course_link || '#'
+      };
+    });
+
+    return res.json(courses);
+
+  } catch (err) {
+    console.error('getSkillIndiaSimilarCourses error:', err);
+    return res.status(500).json({ message: 'Failed to fetch similar courses' });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+async function getAllSkillIndiaCourses(req, res) {
+  let session;
+  try {
+    const { page = 1, limit = 20, search = '' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    session = getSession();
+
+    // Basic search query
+    const whereClause = search 
+      ? `WHERE toLower(n.title) CONTAINS toLower($search) OR toLower(n.description) CONTAINS toLower($search)`
+      : '';
+
+    const query = `
+      MATCH (n:SkillIndiaCourse)
+      ${whereClause}
+      RETURN n
+      SKIP toInteger($skip)
+      LIMIT toInteger($limit)
+    `;
+
+    const result = await session.run(query, { skip, limit, search });
+
+    const courses = result.records.map(record => {
+      const node = record.get('n');
+      const props = node.properties;
+      const id = node.elementId || String(node.identity);
+      
+      return {
+        id: id,
+        title: props.title || 'Unknown Course',
+        provider: props.created_by || 'Skill India',
+        duration: props.duration_formatted || `${props.duration_minutes || 0} mins`,
+        mode: props.type || 'Online', 
+        nsqfLevel: props.nsqf_level || 'N/A',
+        description: props.long_description || props.description || '',
+        isExternal: true,
+        externalLink: props.course_link || '#'
+      };
+    });
+
+    return res.json(courses);
+  } catch (err) {
+    console.error('getAllSkillIndiaCourses error:', err);
+    return res.status(500).json({ message: 'Failed to fetch courses' });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+module.exports = { 
+  getRecommendations, 
+  getPathwayById, 
+  getPathwayGraph, 
+  getCourseById, 
+  getRelatedVideos,
+  getSkillIndiaSimilarCourses,
+  getAllSkillIndiaCourses
+};
