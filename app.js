@@ -9,21 +9,26 @@ const config = require('./config/env');
 const authRouters = require('./routes/auth.route');
 const apiRoutes = require('./routes/api.route');
 const trainerRoutes = require('./routes/trainer.route');
+const jobRoutes = require('./routes/job.route');
 
 function createApp() {
   const app = express();
 
+  // 1. Security & Headers
   app.use(helmet());
+
+  // ✅ FIX: CORS must be at the top!
+  app.use(cors({
+    origin: ["http://localhost:8080", "http://localhost:8081", "http://localhost:5173"], 
+    credentials: true,
+  }));
+
+  // 2. Parsers
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
-  app.use(cors({
-  origin: ["http://localhost:8080", "http://localhost:8081"],
-  credentials: true,
-}));
-
-
+  // 3. Passport Config
   passport.use(
     new GoogleStrategy(
       {
@@ -50,14 +55,15 @@ function createApp() {
 
   app.use(passport.initialize());
 
-  // Routes
+  // 4. Routes
+  app.use('/api', jobRoutes); // ✅ Jobs route mounted here
   app.use('/auth', authRouters);
   app.use('/api', apiRoutes);
   app.use('/trainer', trainerRoutes);
 
   app.get('/', (req, res) => res.json({ ok: true }));
 
-  // Global error handler
+  // 5. Global error handler
   app.use((err, req, res, next) => {
     console.error(err);
     res
