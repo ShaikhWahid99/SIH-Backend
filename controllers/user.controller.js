@@ -10,91 +10,69 @@ async function getProfile(req, res) {
     email: user.email,
     displayName: user.displayName,
     onboarded: user.onboarded,
-    quizCompleted: user.quizCompleted,
-    dynamicQuizCompleted: user.dynamicQuizCompleted,
     userDetails: details || null,
   });
 }
 
 async function upsertProfile(req, res) {
-  const payload = req.body;
+  try {
+    const payload = req.body;
+    const userId = req.userId;
 
-  const existing = await UserDetails.findOne({ user: req.userId }).lean();
-  const existingResponses = Array.isArray(existing?.quizResponses)
-    ? existing.quizResponses
-    : [];
+    // 1. First, save/update the user details (Skills, Education, etc.)
+    let doc = await UserDetails.findOneAndUpdate(
+      { user: userId },
+      { ...payload, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
 
-  const staticResponses = Array.isArray(payload.quizResponses)
-    ? payload.quizResponses
-    : [];
+    // 2. Trigger the new Dynamic Question Generator API
+    // We only do this if it's an onboarding save (checking if skills/education exist)
+    if (payload.skills || payload.education) {
+      try {
+        console.log("Triggering external quiz API for user:", userId);
+        
+        const apiResponse = await fetch("https://imran-decoder-quizz.hf.space/api/ikigai-quiz", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId.toString(),
+            current_stage: "START",
+            answers: []
+          }),
+        });
 
-  const normalizedStatic = staticResponses.map((r, idx) => ({
-    questionId: Number(r.questionId ?? idx + 1),
-    question: r.question,
-    category: r.category || "static",
-    answer: r.answer ?? "",
-  }));
-
-  const dynamicAnswers = Array.isArray(payload.dynamicQuizAnswers)
-    ? payload.dynamicQuizAnswers
-    : [];
-
-  const baseOffset = (() => {
-    const ids = normalizedStatic
-      .map((x) => Number(x.questionId))
-      .filter((n) => Number.isFinite(n));
-    if (ids.length) return Math.max(...ids);
-    return 30;
-  })();
-
-  const normalizedDynamic = dynamicAnswers.map((d, idx) => ({
-    questionId: baseOffset + idx + 1,
-    question: d.question,
-    // category: "dynamic",
-    answer: d.answer,
-  }));
-
-  const byId = new Map();
-  for (const r of existingResponses) {
-    if (Number.isFinite(r.questionId)) {
-      byId.set(Number(r.questionId), r);
+        if (apiResponse.ok) {
+          const quizData = await apiResponse.json();
+          
+          // 3. Save the generated questions into the DB
+          doc = await UserDetails.findOneAndUpdate(
+            { user: userId },
+            { dynamicQuizData: quizData },
+            { new: true }
+          );
+          console.log("Quiz data generated and saved successfully.");
+        } else {
+          console.error("External Quiz API failed:", await apiResponse.text());
+        }
+      } catch (apiError) {
+        console.error("Error connecting to external Quiz API:", apiError);
+        // We don't fail the request here, we just log it. 
+        // The user can try fetching questions later if needed.
+      }
     }
+
+    // 4. Update User flag
+    await User.findByIdAndUpdate(userId, { onboarded: true });
+
+    res.json({ data: doc });
+
+  } catch (error) {
+    console.error("Upsert Profile Error:", error);
+    res.status(500).json({ message: "Failed to update profile" });
   }
-  for (const r of [...normalizedStatic, ...normalizedDynamic]) {
-    if (Number.isFinite(r.questionId)) {
-      byId.set(Number(r.questionId), r);
-    }
-  }
-  const mergedQuizResponses = Array.from(byId.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([, v]) => v);
-
-  payload.quizResponses = mergedQuizResponses;
-  if (dynamicAnswers.length) {
-    payload.dynamicQuizAnswers = [];
-    payload.dynamicQuizCompletedAt = new Date();
-  }
-
-  const doc = await UserDetails.findOneAndUpdate(
-    { user: req.userId },
-    { ...payload, updatedAt: new Date() },
-    { upsert: true, new: true }
-  );
-
-  const updateUser = {
-    onboarded: true,
-  };
-
-  if (Array.isArray(mergedQuizResponses) && mergedQuizResponses.length >= 30) {
-    updateUser.quizCompleted = true;
-  }
-  if (dynamicAnswers.length) {
-    updateUser.dynamicQuizCompleted = true;
-  }
-
-  await User.findByIdAndUpdate(req.userId, updateUser);
-
-  res.json({ data: doc });
 }
 
 module.exports = { getProfile, upsertProfile };

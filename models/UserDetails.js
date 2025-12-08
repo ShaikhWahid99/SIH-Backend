@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+
 const QuizResponseSchema = new mongoose.Schema(
   {
     questionId: { type: Number, required: true },
@@ -18,27 +19,25 @@ const UserDetailsSchema = new mongoose.Schema({
     index: true,
   },
 
+  // Basic Details
   ageRange: { type: String, default: null },
-  preferredLanguage: { type: String, default: null },
 
-  state: { type: String, default: null },
-  district: { type: String, default: null },
-
+  // Education
   education: {
     highestQualification: { type: String, default: null },
     stream: { type: String, default: null },
     status: { type: String, default: null },
   },
 
+  // Skills & Interests
   skills: { type: [String], default: [] },
   interestSectors: { type: [String], default: [] },
 
-  quizResponses: {
-    type: [QuizResponseSchema],
-    default: [],
+  // Storage for the new Dynamic Quiz API response
+  dynamicQuizData: { 
+    type: mongoose.Schema.Types.Mixed, 
+    default: null 
   },
-
-  careerGoal: { type: String, default: null },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: null },
