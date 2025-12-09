@@ -9,6 +9,8 @@ const recommendations = require('../controllers/recommendations.controller');
 // ✅ EXISTING PROFILE ROUTES
 router.get('/me', requireAuth, user.getProfile);
 router.post('/me', requireAuth, user.upsertProfile);
+router.delete('/me', requireAuth, user.clearProfile);
+
 
 router.get('/recommendations', requireAuth, recommendations.getRecommendations);
 

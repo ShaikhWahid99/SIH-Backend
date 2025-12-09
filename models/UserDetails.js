@@ -18,11 +18,9 @@ const UserDetailsSchema = new mongoose.Schema({
     index: true,
   },
 
-  ageRange: { type: String, default: null },
-  preferredLanguage: { type: String, default: null },
+  name: { type: String, default: null },
 
-  state: { type: String, default: null },
-  district: { type: String, default: null },
+  ageRange: { type: String, default: null },
 
   education: {
     highestQualification: { type: String, default: null },
@@ -38,8 +36,7 @@ const UserDetailsSchema = new mongoose.Schema({
     default: [],
   },
 
-  careerGoal: { type: String, default: null },
-
+  
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: null },
 });

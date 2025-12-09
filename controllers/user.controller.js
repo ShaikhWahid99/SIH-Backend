@@ -19,6 +19,11 @@ async function getProfile(req, res) {
 async function upsertProfile(req, res) {
   const payload = req.body;
 
+  const user = await User.findById(req.userId).lean();
+  if (user?.displayName) {
+    payload.name = user.displayName;
+  }
+
   const existing = await UserDetails.findOne({ user: req.userId }).lean();
   const existingResponses = Array.isArray(existing?.quizResponses)
     ? existing.quizResponses
@@ -97,4 +102,14 @@ async function upsertProfile(req, res) {
   res.json({ data: doc });
 }
 
-module.exports = { getProfile, upsertProfile };
+async function clearProfile(req, res) {
+  await UserDetails.deleteOne({ user: req.userId });
+  await User.findByIdAndUpdate(req.userId, {
+    onboarded: false,
+    quizCompleted: false,
+    dynamicQuizCompleted: false,
+  });
+  res.json({ message: "Profile cleared" });
+}
+
+module.exports = { getProfile, upsertProfile, clearProfile };
