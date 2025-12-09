@@ -88,14 +88,14 @@ async function getRecommendations(req, res) {
         : null,
     ].filter(Boolean);
 
-  let records = [];
-  for (const q of queries) {
-    const result = await session.run(q.text, q.params);
-    if (result.records.length) {
-      records = result.records;
-      break;
+    let records = [];
+    for (const q of queries) {
+      const result = await session.run(q.text, q.params);
+      if (result.records.length) {
+        records = result.records;
+        break;
+      }
     }
-  }
 
     // Fallback: allow testing with explicit ID when user has no graph edges
     if (!records.length) {
@@ -239,7 +239,7 @@ async function getCourseById(req, res) {
     const { id } = req.params;
     session = getSession();
 
-    // Query to find ANY node (Course, Module, Lab) by its ID (from friend's comment)
+    // Query to find ANY node (Course, Module, Lab) by its ID
     const query = `
       MATCH (n)
       WHERE elementId(n) = $id OR ID(n) = toInteger($id)
@@ -284,7 +284,7 @@ async function getCourseById(req, res) {
       description: props.description || '',
       mode: props.mode || 'Offline',
       provider: props.provider || 'Internal',
-      learningOutcomes: props.learning_outcome || props.learningOutcomes || [], // Check for 'learning_outcome' from your screenshot
+      learningOutcomes: props.learning_outcome || props.learningOutcomes || [], // Check for 'learning_outcome'
 
       ...props
     });
@@ -298,20 +298,20 @@ async function getCourseById(req, res) {
 
 async function getRelatedVideos(req, res) {
   try {
-    const { q } = req.query; // Expecting query param ?q=CourseName (from friend's comment)
+    const { q } = req.query; // Expecting query param ?q=CourseName
     if (!q) {
       return res.status(400).json({ message: 'Query parameter "q" is required' });
     }
 
     const searchQuery = q.replace(/ /g, '+');
-    // Using a User-Agent to mimic a real browser to avoid simple blocking (from friend's comment)
+    // Using a User-Agent to mimic a real browser to avoid simple blocking
     const response = await axios.get(`https://www.youtube.com/results?search_query=${searchQuery}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
       }
     });
 
-    // Extract JSON data from the HTML (from friend's comment)
+    // Extract JSON data from the HTML
     const html = response.data;
     const match = html.match(/var ytInitialData = ({.*?});/);
     if (!match) return res.json([]);
@@ -335,7 +335,7 @@ async function getRelatedVideos(req, res) {
                 views: v.viewCountText?.simpleText || 'N/A'
               });
 
-              if (videos.length >= 3) break; // Limit to 3 videos (from friend's comment)
+              if (videos.length >= 3) break; // Limit to 3 videos
             }
           }
         }
@@ -345,7 +345,7 @@ async function getRelatedVideos(req, res) {
     return res.json(videos);
   } catch (err) {
     console.error('getRelatedVideos error:', err.message);
-    // Return empty array on failure so frontend doesn't crash (from friend's comment)
+    // Return empty array on failure so frontend doesn't crash
     return res.json([]);
   }
 }
@@ -450,6 +450,69 @@ async function getAllSkillIndiaCourses(req, res) {
   }
 }
 
+async function getAllQualifications(req, res) {
+  let session;
+  try {
+    session = getSession();
+    // Fetch 50 qualifications
+    const result = await session.run(`
+        MATCH (n:Qualification) 
+        RETURN n 
+        LIMIT 50
+    `);
+
+    const qualifications = result.records.map(record => {
+        const node = record.get('n').properties;
+        
+        // We use the 'code' or 'nqr_code' as the unique ID since Neo4j <id> changes
+        return {
+            id: node.code || node.nqr_code, 
+            title: node.title,
+            description: node.description,
+            nsqf_level: node.nsqf_level,
+            sector: node.sector,
+            total_hours: node.total_hours,
+            duration_practical: node.duration_practical,
+            duration_theory: node.duration_theory,
+            nqr_code: node.nqr_code
+        };
+    });
+
+    res.status(200).json(qualifications);
+  } catch (error) {
+    console.error('Error fetching qualifications:', error);
+    res.status(500).json({ message: 'Failed to fetch qualifications' });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+// ✅ NEW FUNCTION: Fetch all unique sectors for the dropdown
+async function getAllSectors(req, res) {
+  let session;
+  try {
+    session = getSession();
+    
+    // Query all Sector nodes and return their names, sorted alphabetically.
+    const query = `
+      MATCH (s:Sector)
+      RETURN s.name AS name
+      ORDER BY name ASC
+    `;
+
+    const result = await session.run(query);
+    const sectors = result.records.map(record => record.get('name'));
+
+    return res.json(sectors);
+  } catch (err) {
+    console.error('getAllSectors error:', err);
+    return res.status(500).json({ message: 'Failed to fetch sectors' });
+  } finally {
+    if (session) await session.close();
+  }
+}
+
+
 module.exports = { 
   getRecommendations, 
   getPathwayById, 
@@ -457,5 +520,7 @@ module.exports = {
   getCourseById, 
   getRelatedVideos,
   getSkillIndiaSimilarCourses,
-  getAllSkillIndiaCourses
+  getAllSkillIndiaCourses,
+  getAllQualifications,
+  getAllSectors // 👈 Added to exports
 };

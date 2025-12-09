@@ -4,7 +4,6 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const user = require('../controllers/user.controller');
 const recommendations = require('../controllers/recommendations.controller');
-// Removed duplicate imports for cleanliness
 
 // ✅ EXISTING PROFILE ROUTES
 router.get('/me', requireAuth, user.getProfile);
@@ -33,6 +32,12 @@ router.use('/translate', translateRoute);
 const chatRoute = require('./chat.route');
 router.use('/chat', chatRoute);
 
+// LIST/CATALOGUE ROUTES
 router.get('/skill-india/all', requireAuth, recommendations.getAllSkillIndiaCourses);
+
+router.get('/qualifications', requireAuth, recommendations.getAllQualifications);
+
+// ✅ NEW SECTOR FILTER ROUTE
+router.get('/sectors', requireAuth, recommendations.getAllSectors);
 
 module.exports = router;
