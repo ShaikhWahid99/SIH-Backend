@@ -18,10 +18,12 @@ function createApp() {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
-  app.use(cors({
-  origin: ["http://localhost:8080", "http://localhost:8081"],
-  credentials: true,
-}));
+  app.use(
+    cors({
+      origin: "https://sih-career-advisor.vercel.app",
+      credentials: true,
+    }),
+  );
 
 
   passport.use(
